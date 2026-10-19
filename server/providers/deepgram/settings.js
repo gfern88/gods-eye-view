@@ -16,16 +16,45 @@ const THINK_DEFAULTS = Object.freeze({
   anthropic: 'claude-haiku-4-5',
 });
 
+// Own-key endpoints per think type: the vendor's base URL, the request path
+// Deepgram calls, and the auth header. DEEPGRAM_THINK_URL swaps the base for
+// any compatible service (e.g. an OpenAI-compatible gateway).
 const OWN_KEY_ENDPOINTS = Object.freeze({
-  open_ai: (key) => ({
-    url: 'https://api.openai.com/v1/chat/completions',
-    headers: { authorization: `Bearer ${key}` },
-  }),
-  anthropic: (key) => ({
-    url: 'https://api.anthropic.com/v1/messages',
-    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-  }),
+  open_ai: {
+    base: 'https://api.openai.com/v1',
+    path: '/chat/completions',
+    headers: (key) => ({ authorization: `Bearer ${key}` }),
+  },
+  anthropic: {
+    base: 'https://api.anthropic.com/v1',
+    path: '/messages',
+    headers: (key) => ({ 'x-api-key': key, 'anthropic-version': '2023-06-01' }),
+  },
 });
+
+/**
+ * The think endpoint for an own key and/or custom URL. A URL given as a base
+ * (`https://api.example.com/v1`) gets the type's request path appended.
+ */
+function thinkEndpoint(provider, env) {
+  const spec = OWN_KEY_ENDPOINTS[provider];
+  const key = clean(env.DEEPGRAM_THINK_API_KEY);
+  const url = clean(env.DEEPGRAM_THINK_URL) || spec.base;
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error('DEEPGRAM_THINK_URL is not a valid URL');
+  }
+  // Deepgram calls custom think endpoints over https only.
+  if (parsed.protocol !== 'https:') {
+    throw new Error('DEEPGRAM_THINK_URL must use https');
+  }
+  // Work on the path, so a query string (e.g. ?api-version=) is kept intact.
+  const path = parsed.pathname.replace(/\/+$/, '');
+  parsed.pathname = path.endsWith(spec.path) ? path : path + spec.path;
+  return { url: parsed.href, headers: key ? spec.headers(key) : {} };
+}
 
 // Words the default speech model mishears in this app.
 const KEYTERMS = Object.freeze([
@@ -66,7 +95,9 @@ export function resolveThink(env = {}) {
   return {
     provider: chosen,
     model: clean(env.DEEPGRAM_THINK_MODEL) || THINK_DEFAULTS[chosen],
-    ownKey: Boolean(clean(env.DEEPGRAM_THINK_API_KEY)),
+    ownKey: Boolean(
+      clean(env.DEEPGRAM_THINK_API_KEY) || clean(env.DEEPGRAM_THINK_URL),
+    ),
   };
 }
 
@@ -103,11 +134,7 @@ export function buildDeepgramSettings({
     prompt,
     functions: deepgramFunctions(tools),
   };
-  if (think.ownKey) {
-    thinkConfig.endpoint = OWN_KEY_ENDPOINTS[think.provider](
-      clean(env.DEEPGRAM_THINK_API_KEY),
-    );
-  }
+  if (think.ownKey) thinkConfig.endpoint = thinkEndpoint(think.provider, env);
   return {
     type: 'Settings',
     tags: ['gods-eye-view'],

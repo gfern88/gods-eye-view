@@ -886,3 +886,56 @@ test('a typed command held across a tool call is still sent', () => {
     content: 'then zoom out',
   });
 });
+
+test('a custom think URL points the open_ai type at a compatible service', () => {
+  const think = buildDeepgramSettings({
+    env: {
+      DEEPGRAM_THINK_URL: 'https://api.cheaperinference.com/v1/',
+      DEEPGRAM_THINK_MODEL: 'some-model',
+      DEEPGRAM_THINK_API_KEY: 'ci-fixture',
+    },
+  }).agent.think;
+  assert.equal(think.provider.type, 'open_ai');
+  assert.equal(think.provider.model, 'some-model');
+  assert.deepEqual(think.endpoint, {
+    url: 'https://api.cheaperinference.com/v1/chat/completions',
+    headers: { authorization: 'Bearer ci-fixture' },
+  });
+  const full = buildDeepgramSettings({
+    env: { DEEPGRAM_THINK_URL: 'https://gw.example/v1/chat/completions' },
+  }).agent.think.endpoint;
+  assert.deepEqual(full, {
+    url: 'https://gw.example/v1/chat/completions',
+    headers: {},
+  });
+  assert.throws(
+    () =>
+      buildDeepgramSettings({
+        env: { DEEPGRAM_THINK_URL: 'http://insecure.example/v1' },
+      }),
+    /https/,
+  );
+});
+
+test('custom think URL keeps query strings and suits the anthropic type', () => {
+  const url = (env) => buildDeepgramSettings({ env }).agent.think.endpoint.url;
+  assert.equal(
+    url({ DEEPGRAM_THINK_URL: 'https://gw.example/v1/?api-version=1' }),
+    'https://gw.example/v1/chat/completions?api-version=1',
+  );
+  assert.equal(
+    url({ DEEPGRAM_THINK_URL: 'https://gw.example/v1/chat/completions?a=b' }),
+    'https://gw.example/v1/chat/completions?a=b',
+  );
+  assert.equal(
+    url({
+      DEEPGRAM_THINK_PROVIDER: 'anthropic',
+      DEEPGRAM_THINK_URL: 'https://gw.example/v1',
+    }),
+    'https://gw.example/v1/messages',
+  );
+  assert.throws(
+    () => url({ DEEPGRAM_THINK_URL: 'not a url' }),
+    /not a valid URL/,
+  );
+});
