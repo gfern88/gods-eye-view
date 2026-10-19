@@ -1,4 +1,5 @@
 import { admitSameSiteRequest } from '../../../src/localRequestGate.mjs';
+import { fromTrustedProxy, requestProtocol } from './trusted-proxy.js';
 
 /**
  * Cross-site request gate for cost-bearing and log endpoints. Feeds the
@@ -6,19 +7,23 @@ import { admitSameSiteRequest } from '../../../src/localRequestGate.mjs';
  * itself when the request is refused. Returns true when it has already
  * responded (the caller returns); false when the handler should continue.
  * Refuses cross-site browser requests (foreign or opaque Origin, a
- * Sec-Fetch-Site other than same-origin/none, or reverse-proxy headers) while
- * keeping loopback non-browser tools and the HOST=0.0.0.0 LAN opt-in working.
+ * Sec-Fetch-Site other than same-origin/none, or reverse-proxy headers from a
+ * peer outside GEV_TRUSTED_PROXIES) while keeping loopback non-browser tools
+ * and the HOST=0.0.0.0 LAN opt-in working.
  * @param {import('node:http').IncomingMessage} req
  * @param {import('node:http').ServerResponse} res
  * @returns {boolean} True when a 403 was sent.
  */
 export function admitSameSite(req, res) {
+  // A GEV_TRUSTED_PROXIES peer is the operator's own proxy: its forwarding
+  // headers are expected, and TLS ended there, so the Origin check uses the
+  // forwarded scheme. The Origin and Sec-Fetch-Site checks still apply.
   const verdict = admitSameSiteRequest({
     hostHeader: req.headers?.host,
-    protocol: req.socket?.encrypted ? 'https:' : 'http:',
+    protocol: requestProtocol(req),
     origin: req.headers?.origin,
     secFetchSite: req.headers?.['sec-fetch-site'],
-    proxyHeaders: req.headers || {},
+    proxyHeaders: fromTrustedProxy(req) ? {} : req.headers || {},
   });
   if (verdict.ok) return false;
   res.statusCode = verdict.status;

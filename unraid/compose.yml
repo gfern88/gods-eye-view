@@ -1,0 +1,45 @@
+# Unraid Compose Manager project "gods-eye-view".
+# Canonical copy of /boot/config/plugins/compose.manager/projects/gods-eye-view/compose.yml.
+# Source is the git clone at /mnt/user/git/gods-eye-view (origin = the fork
+# github.com/gfern88/gods-eye-view). Update: bash unraid/deploy.sh on the Unraid host.
+#
+# No published ports on purpose: the only way in is the Cloudflare tunnel
+# (CloudflareTunnel-Garyflix, 10.1.1.35) reaching http://10.1.1.241:4173, and
+# god.gf88.dev sits behind a Cloudflare Access app (Gary + Michael only). The app
+# brokers its API keys to anyone who reaches it, so never publish a port or drop
+# the Access app.
+services:
+  gods-eye-view:
+    build:
+      context: /mnt/user/git/gods-eye-view
+      dockerfile: Dockerfile
+    image: gods-eye-view:latest
+    container_name: gods-eye-view
+    expose:
+      - "4173"
+    restart: unless-stopped
+    environment:
+      # Host header the tunnel forwards; IPs and localhost are always accepted.
+      GEV_ALLOWED_HOSTS: god.gf88.dev
+      # Every request arrives from the tunnel, so trust no peer for Provider
+      # Settings: keys are edited in appdata/.env, never through the web UI.
+      GEV_KEY_SETUP_TRUSTED_PEERS: none
+      # The tunnel connector: its forwarding headers are trusted, so rate limits
+      # key on the real client and the keyed endpoints accept proxied requests.
+      GEV_TRUSTED_PROXIES: 10.1.1.35
+    volumes:
+      # Keys (OPENAI_API_KEY, CESIUM_ION_TOKEN, ...): loaded by Vite's loadEnv at start.
+      - /mnt/user/appdata/gods-eye-view/.env:/app/.env:ro
+      - /mnt/user/appdata/gods-eye-view/cache:/app/.gev-cache
+      - /mnt/user/appdata/gods-eye-view/logs:/app/.gev-logs
+    networks:
+      tunnel:
+        ipv4_address: 10.1.1.241   # fixed; the tunnel's public hostname points here
+    labels:
+      net.unraid.docker.managed: composeman
+      net.unraid.docker.icon: /boot/config/plugins/compose.manager/projects/gods-eye-view/gods-eye-view.png
+      net.unraid.docker.webui: https://god.gf88.dev/
+
+networks:
+  tunnel:
+    external: true
