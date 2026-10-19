@@ -304,6 +304,7 @@ export class RealtimeViewport {
   constructor({
     readChannel,
     readPointer = () => null,
+    readVisionSupported = () => true,
     operations,
     capture = captureViewportImage,
     capturePointer = capturePointerCrop,
@@ -312,7 +313,15 @@ export class RealtimeViewport {
   }) {
     Object.assign(
       this,
-      { readChannel, readPointer, capture, capturePointer, readCameraKey, now },
+      {
+        readChannel,
+        readPointer,
+        readVisionSupported,
+        capture,
+        capturePointer,
+        readCameraKey,
+        now,
+      },
       operations,
     );
     this.generation = 0;
@@ -331,8 +340,10 @@ export class RealtimeViewport {
   }
 
   async sendVisualContextIfUseful(result) {
+    // A provider without image input skips the capture entirely.
     if (
       result?.action !== 'get_entity_context' ||
+      !this.readVisionSupported() ||
       !this.dc ||
       this.dc.readyState !== 'open'
     )

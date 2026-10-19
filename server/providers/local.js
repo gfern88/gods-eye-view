@@ -19,6 +19,7 @@ import { adsbLolProxy } from './aircraft/adsb-lol.js';
 import { aisLiveProxy } from './vessels/ais-live.js';
 import { trackBackfillProxies } from './aircraft/tracks.js';
 import { openAiRealtimeProxy } from './openai.js';
+import { deepgramVoiceProxy } from './deepgram.js';
 import { googlePlacesContextProxy } from './places.js';
 import { mapillaryProxy } from './mapillary.js';
 import { keySetupEndpoint } from '../standalone/key-setup.js';
@@ -55,6 +56,7 @@ function localProviderPlugins({ realtime } = {}) {
     aisLiveProxy(),
     trackBackfillProxies(),
     openAiRealtimeProxy({ realtime }),
+    deepgramVoiceProxy({ realtime }),
     googlePlacesContextProxy(),
     windProxy(),
     weatherProxy(),

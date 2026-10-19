@@ -1062,5 +1062,10 @@
   "src/ui/flyToDataSource.test.mjs",
   "scripts/assemble-changelog.mjs",
   "src/tooling/changelogFragments.test.mjs",
-  "src/data/gbfsProxyRateLimit.test.mjs"
+  "src/data/gbfsProxyRateLimit.test.mjs",
+  "server/providers/common/trusted-proxy.js",
+  "server/providers/deepgram.js",
+  "server/providers/deepgram/settings.js",
+  "src/voice/deepgramProtocol.js",
+  "src/voice/deepgramConnection.js"
 ]

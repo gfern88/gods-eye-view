@@ -80,6 +80,7 @@ export class GevRealtimeController extends RealtimeFacade {
     actionExecutor,
     onSessionEvent,
     pointer = null,
+    createConnection = (options) => new RealtimeConnection(options),
   }) {
     super();
     this.pointer = pointer;
@@ -99,6 +100,7 @@ export class GevRealtimeController extends RealtimeFacade {
     this._viewport = new RealtimeViewport({
       readChannel: () => this.dc,
       readPointer: () => this.pointer?.activeSnapshot?.() || null,
+      readVisionSupported: () => this._connection?.supportsVision !== false,
 
       operations: {
         sendRealtimeEvent: (...args) => this.sendRealtimeEvent(...args),
@@ -221,7 +223,7 @@ export class GevRealtimeController extends RealtimeFacade {
       canSpeak: () => !this.pushToTalkKeyHeld && this._turns.canNarrate(),
       onNarration: (kind) => this._metrics.narration(kind),
     });
-    this._connection = new RealtimeConnection({
+    this._connection = createConnection({
       readLifetimeSignal: () => this.lifetimeSignal,
       readBackend: () => this.backend,
       readStatus: () => this.status,
