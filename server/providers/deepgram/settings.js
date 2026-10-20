@@ -113,6 +113,25 @@ export function deepgramFunctions(tools = []) {
   }));
 }
 
+const REASONING_MODES = new Set(['none', 'minimal', 'low', 'medium', 'high']);
+
+/**
+ * DEEPGRAM_THINK_REASONING: how long a reasoning model may think before it
+ * speaks (Deepgram's open_ai `reasoning_mode`). Voice needs `minimal` for
+ * reasoning models, which otherwise think past Deepgram's think timeout.
+ */
+function reasoningMode(provider, env) {
+  const mode = clean(env.DEEPGRAM_THINK_REASONING).toLowerCase();
+  if (!mode) return {};
+  if (!REASONING_MODES.has(mode)) {
+    throw new Error(
+      `DEEPGRAM_THINK_REASONING must be one of ${[...REASONING_MODES].join(', ')}`,
+    );
+  }
+  // Deepgram documents reasoning_mode for the open_ai type only.
+  return provider === 'open_ai' ? { reasoning_mode: mode } : {};
+}
+
 /**
  * The complete Settings message.
  * @param {{env?: Record<string,string|undefined>, tools?: object[], annotationGuidance?: string}} options
@@ -129,7 +148,7 @@ export function buildDeepgramSettings({
       type: think.provider,
       version: 'v1',
       model: think.model,
-      temperature: 0.6,
+      ...reasoningMode(think.provider, env),
     },
     prompt,
     functions: deepgramFunctions(tools),

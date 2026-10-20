@@ -939,3 +939,25 @@ test('custom think URL keeps query strings and suits the anthropic type', () => 
     /not a valid URL/,
   );
 });
+
+test('DEEPGRAM_THINK_REASONING sets reasoning_mode for the open_ai type only', () => {
+  const provider = (env) => buildDeepgramSettings({ env }).agent.think.provider;
+  assert.equal(
+    provider({ DEEPGRAM_THINK_REASONING: 'Minimal' }).reasoning_mode,
+    'minimal',
+  );
+  assert.equal(provider({}).reasoning_mode, undefined);
+  // Reasoning models reject a non-default temperature; never send one.
+  assert.equal(provider({}).temperature, undefined);
+  assert.equal(
+    provider({
+      DEEPGRAM_THINK_PROVIDER: 'anthropic',
+      DEEPGRAM_THINK_REASONING: 'minimal',
+    }).reasoning_mode,
+    undefined,
+  );
+  assert.throws(
+    () => provider({ DEEPGRAM_THINK_REASONING: 'lots' }),
+    /DEEPGRAM_THINK_REASONING/,
+  );
+});
